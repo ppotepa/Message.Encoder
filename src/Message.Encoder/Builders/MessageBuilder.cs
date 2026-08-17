@@ -2,6 +2,7 @@ using Message.Encoder.Attributes;
 using Message.Encoder.Exceptions;
 using Message.Encoder.Extensions;
 using Message.Encoder.Messages;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -22,7 +23,6 @@ namespace Message.Encoder.Builders
         private readonly List<KeyValuePair<string, object>> _payloadProperties = default;
 
         private long _additionalHeadersLength = 0;
-        private long _payloadPropertiesLength = 0;
 
         private readonly int _maxProperties = default;
         private readonly int _maxHeaders = default;
@@ -44,7 +44,7 @@ namespace Message.Encoder.Builders
             this._maxHeaders = _headersAttributes.Length;
             this._maxProperties = _payloadAttributes.Length;
 
-            this._defaultBytes = new List<byte>(28);
+            this._defaultBytes = new List<byte>(25);
             this._additionalHeaders = new List<KeyValuePair<string, object>>();
             this._payloadProperties = new List<KeyValuePair<string, object>>();
         }
@@ -68,24 +68,28 @@ namespace Message.Encoder.Builders
 
         public IAddHeaderBuildingStep<THeaders, TPayload> AddHeader<THeaderType>(string name, THeaderType value)
         {
-            if (_additionalHeaders.Count < this._maxHeaders)
+            if (_additionalHeaders.Count >= this._maxHeaders)
             {
-                string expectedHeaderName = _headersAttributes[_additionalHeaders.Count].PropertyName;
-
-                if (expectedHeaderName == name)
-                {
-                    this._additionalHeaders.Add(new KeyValuePair<string, object>(name, value));
-                    var currentValueByteLength = value.ToByteArray().Length;
-                    this._additionalHeadersLength += (2 + currentValueByteLength);
-                    return this;
-                }
-
-                throw new InvalidHeaderNameException($"Header name was invalid. Expected {expectedHeaderName} was {name}.");
-
+                throw new HeadersCountExceededException(
+                    $"Header count exceeded. Allowed {_maxHeaders}, current was {_additionalHeaders.Count + 1}"
+                );
             }
 
-            throw new HeadersCountExceededException(
-                $"Header count exceeded. Allowed {_maxHeaders}, current was {_maxHeaders + 1}");
+            string expectedHeaderName = _headersAttributes[_additionalHeaders.Count].PropertyName;
+
+            if (expectedHeaderName != name)
+            {
+                throw new InvalidHeaderNameException(
+                    $"Header name was invalid. Expected {expectedHeaderName} was {name}."
+                );
+            }
+
+            var currentValueByteLength = value.ToByteArray().Length;
+            EnsureHeaderLength(name, currentValueByteLength);
+
+            this._additionalHeaders.Add(new KeyValuePair<string, object>(name, value));
+            this._additionalHeadersLength += 2 + currentValueByteLength;
+            return this;
         }
 
         public IAddPayloadPropertyStep<THeaders, TPayload> EndHeaders()
@@ -107,16 +111,24 @@ namespace Message.Encoder.Builders
 
         public IAddPayloadPropertyStep<THeaders, TPayload> AddPayloadProperty<TType>(string propertyName, TType property)
         {
-            if (_payloadProperties.Count < this._maxProperties)
+            if (_payloadProperties.Count >= this._maxProperties)
             {
-                this._payloadProperties.Add(new KeyValuePair<string, object>(propertyName, property));
-                var currentValueByteLength = property.ToByteArray().Length;
-                this._payloadPropertiesLength += (2 + currentValueByteLength);
-                return this;
+                throw new PayloadPropertiesCountExceeded(
+                    $"Invalid amount of properties supplied. Allowed {_maxProperties}, current was {_payloadProperties.Count + 1}"
+                );
             }
 
-            throw new PayloadPropertiesCountExceeded(
-                $"Invalid amount of properties supplied. Allowed {_maxProperties}, current was {_maxProperties + 1}");
+            string expectedPropertyName = _payloadAttributes[_payloadProperties.Count].PropertyName;
+
+            if (expectedPropertyName != propertyName)
+            {
+                throw new InvalidPayloadPropertyNameException(
+                    $"Payload property name was invalid. Expected {expectedPropertyName} was {propertyName}."
+                );
+            }
+
+            this._payloadProperties.Add(new KeyValuePair<string, object>(propertyName, property));
+            return this;
         }
 
         public Message Build()
@@ -143,6 +155,7 @@ namespace Message.Encoder.Builders
             byte[] additionalHeaderBytes = _additionalHeaders.Select(pair =>
                 {
                     byte[] valueBytes = pair.Value.ToByteArray();
+                    EnsureHeaderLength(pair.Key, valueBytes.Length);
                     byte[] valueByteLengthArray = ((short)valueBytes.Length).ToByteArray();
                     return valueByteLengthArray.Concat(valueBytes);
                 })
@@ -152,17 +165,28 @@ namespace Message.Encoder.Builders
             byte[] payloadBytes = _payloadProperties.Select(pair =>
                 {
                     byte[] valueBytes = pair.Value.ToByteArray();
-                    byte[] valueByteLengthArray = ((int)valueBytes.Length).ToByteArray();
+                    byte[] valueByteLengthArray = valueBytes.Length.ToByteArray();
                     return valueByteLengthArray.Concat(valueBytes);
                 })
                 .SelectMany(bytes => bytes)
                 .ToArray();
 
-            this._defaultBytes.AddRange(_additionalHeadersLength.ToByteArray());
-            this._defaultBytes.AddRange(additionalHeaderBytes);
-            this._defaultBytes.AddRange(payloadBytes);
+            return _defaultBytes
+                .Concat(_additionalHeadersLength.ToByteArray())
+                .Concat(additionalHeaderBytes)
+                .Concat(payloadBytes)
+                .ToArray();
+        }
 
-            return _defaultBytes.ToArray();
+        private static void EnsureHeaderLength(string headerName, int length)
+        {
+            if (length > short.MaxValue)
+            {
+                throw new InvalidHeadersLengthException(
+                    $"Header {headerName} is too large. Maximum length is {short.MaxValue} bytes.",
+                    new ArgumentOutOfRangeException(nameof(length), length, "Header length exceeds the binary format limit.")
+                );
+            }
         }
     }
 
@@ -211,4 +235,3 @@ namespace Message.Encoder.Builders
         byte[] GetBinary();
     }
 }
-

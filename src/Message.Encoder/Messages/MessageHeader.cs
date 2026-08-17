@@ -1,8 +1,10 @@
+using Message.Encoder.Attributes;
 using Message.Encoder.Builders;
 using Message.Encoder.Extensions;
 using Message.Encoder.Messages.Transport;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 namespace Message.Encoder.Messages
 {
@@ -23,7 +25,10 @@ namespace Message.Encoder.Messages
         public long To { get; set; }
 
         public long HeadersLength
-            => this.Headers.Values.Select(x => x.ToByteArray().Length).Sum() + (this.Headers.Count * 2);
+            => GetType()
+                .GetProperties()
+                .Where(property => property.GetCustomAttribute<SerializationOrderAttribute>() is not null)
+                .Sum(property => (long)(2 + property.GetValue(this).ToByteArray().Length));
 
         internal virtual byte[] DefaultBytes => new object[] {
             From, To, Timestamp, MessageType
@@ -49,7 +54,6 @@ namespace Message.Encoder.Messages
             this.To = headersTransport.MSG_TO;
             this.MessageType = headersTransport.MSG_TYPE;
             this.Timestamp = headersTransport.MSG_TIMESTAMP;
-            this.MessageType = headersTransport.MSG_TYPE;
         }
     }
 }

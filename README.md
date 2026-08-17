@@ -10,17 +10,18 @@
 - **src/Message.Encoder** – Core library with encoder logic.
 - **src/Message.Encoder.PoC** – Proof-of-concept console app showcasing basic usage.
 - **src/Benchmarks/Message.Encoder.Benchmarks** – Benchmark project using BenchmarkDotNet.
-- **src/Tests/Message.Encoder.MessageBuilder.Tests** – Unit tests for the message builder.
-- **src/Tests/Message.Encoder.CustomMessages.Tests** – Unit tests for custom message classes.
+- **src/Tests/Message.Encoder.MessageBuilder.Tests** – Unit tests for the message builder and binary format.
+- **src/Tests/Message.Encoder.CustomMessages.Tests** – Unit tests for custom message classes and serializers.
 
 ## Features
 
-- **Message Schema with Attributes** – Easy message class definitions with `[SerializationOrder]` and `[MessageType]`.
-- **Headers & Payload Model** – Clean separation between headers and payloads.
-- **Fluent Builder API** – Chain calls to build messages easily.
-- **Custom Serialization Support** – Plug in custom serializers per property.
-- **Efficiency Focus** – Span-based operations for performance.
-- **Minimal Dependencies** – Built on pure .NET without heavy libraries.
+- **Message Schema with Attributes** – Define message classes with `[SerializationOrder]` and `[MessageType]`.
+- **Headers & Payload Model** – Separate header and payload serialization.
+- **Fluent Builder API** – Staged builder that enforces the required basic message fields.
+- **Custom Serialization Support** – Select serializers per type with `[UseSerializer]`.
+- **Deterministic Binary Format** – Integer primitives are encoded explicitly as little-endian values.
+- **Round-trip Support** – Registered message types can be serialized and deserialized.
+- **Minimal Dependencies** – The core library uses only .NET runtime libraries.
 
 ## Getting Started
 
@@ -74,16 +75,15 @@ var messageBytes = builder
     .To(2)
     .Timestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds())
     .MsgType(1)
-    .AddHeader("sender-name", "Alice")
     .AddHeader("recipient-name", "Bob")
+    .AddHeader("sender-name", "Alice")
+    .AddHeader("is-message-unread", true)
     .EndHeaders()
     .AddPayloadProperty(nameof(DefaultTextMessagePayload.TextMessageBody), "Hello, world!")
     .GetBinary();
 ```
 
 `messageBytes` contains the serialized message ready for transport or storage.
-
-The library currently focuses mainly on serialization. Full deserialization support may require additional work depending on the use case.
 
 ## Contributing
 

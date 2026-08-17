@@ -30,19 +30,20 @@ namespace Message.Encoder.Metadata.Serialization
             PropertyInfo[] properties = type.GetProperties();
 
             var propertiesWithAttributes = properties
-                .Where(prop => prop.GetCustomAttribute<SerializationOrderAttribute>() is not null)
-                .Select(prop =>
+                .Select(prop => new
                 {
-                    SerializationMetadata result = new SerializationMetadata
-                    (
-                        attribute: prop.GetCustomAttribute(typeof(SerializationOrderAttribute)) as SerializationOrderAttribute,
-                        propertyInfo: prop,
-                        preactivated: GetUninitializedObject(prop),
-                        isNullable: Nullable.GetUnderlyingType(prop.PropertyType) != null
-                    );
-
-                    return result;
+                    Property = prop,
+                    Attribute = prop.GetCustomAttribute<SerializationOrderAttribute>()
                 })
+                .Where(item => item.Attribute is not null)
+                .Select(item => new SerializationMetadata
+                (
+                    attribute: item.Attribute!,
+                    propertyInfo: item.Property,
+                    preactivated: GetUninitializedObject(item.Property),
+                    isNullable: Nullable.GetUnderlyingType(item.Property.PropertyType) != null
+                ))
+                .OrderBy(metadata => metadata.Attribute.Order)
                 .ToArray();
 
             var grouped = propertiesWithAttributes.GroupBy(prop => prop.Attribute.Order);
@@ -50,10 +51,10 @@ namespace Message.Encoder.Metadata.Serialization
 
             if (moreThanOnce.Any())
             {
-                var message = string.Join("", moreThanOnce.Select(x => x.Key));
+                var message = string.Join(", ", moreThanOnce.Select(x => x.Key));
 
                 throw new InvalidSerializationOrderException(
-                   $"Unable to build metadata. Some Property orders are duplicated. {message}"
+                   $"Unable to build metadata. Some property orders are duplicated: {message}."
                 );
             }
 

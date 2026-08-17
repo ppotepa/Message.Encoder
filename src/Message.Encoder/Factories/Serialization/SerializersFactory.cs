@@ -2,38 +2,23 @@ using Message.Encoder.Extensions;
 using Message.Encoder.Messages;
 using Message.Encoder.Serializers;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace Message.Encoder.Factories.Serialization
 {
     internal static class SerializersFactory
     {
-        internal static Dictionary<Type, Type> HeadersSerializers = default;
-        internal static Dictionary<Type, Type> PayloadSerializers = default;
-
-        static SerializersFactory()
-        {
-            HeadersSerializers ??= AppDomain.CurrentDomain
-                .GetSubclassesOf<MessageHeader>()
-                .ToDictionary(payload => payload, CustomTypeExtensions.ObtainHeaderSerializer);
-
-            PayloadSerializers ??= AppDomain.CurrentDomain
-                .GetSubclassesOf<Payload>()
-                .ToDictionary(payload => payload, CustomTypeExtensions.ObtainPayloadSerializer);
-
-        }
-
         private static ISerializer CreateSerializer(Type type)
         {
             if (type is null)
                 throw new ArgumentNullException(nameof(type));
 
             if (typeof(Payload).IsAssignableFrom(type))
-                return Activator.CreateInstance(PayloadSerializers[type]) as ISerializer;
+                return Activator.CreateInstance(type.ObtainPayloadSerializer()) as ISerializer
+                    ?? throw new InvalidOperationException($"Unable to create payload serializer for {type.Name}.");
 
             if (typeof(MessageHeader).IsAssignableFrom(type))
-                return Activator.CreateInstance(HeadersSerializers[type]) as ISerializer;
+                return Activator.CreateInstance(type.ObtainHeaderSerializer()) as ISerializer
+                    ?? throw new InvalidOperationException($"Unable to create header serializer for {type.Name}.");
 
             throw new ArgumentException(
                 $"{type.Name} is not assignable from {nameof(Payload)} nor from {nameof(MessageHeader)}."
@@ -43,7 +28,16 @@ namespace Message.Encoder.Factories.Serialization
         public static TSerializer CreateSerializer<TSerializer>(Type type)
             where TSerializer : ISerializer
         {
-            return (TSerializer)CreateSerializer(type);
+            var serializer = CreateSerializer(type);
+
+            if (serializer is not TSerializer typedSerializer)
+            {
+                throw new InvalidOperationException(
+                    $"Serializer {serializer.GetType().Name} is not assignable to {typeof(TSerializer).Name}."
+                );
+            }
+
+            return typedSerializer;
         }
     }
 }
