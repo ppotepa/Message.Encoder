@@ -1,18 +1,17 @@
-# Sinch.MessageEncoder
+# Message.Encoder
 
-**Sinch.MessageEncoder** is a lightweight C# library for encoding message objects into a compact binary format. It was designed as a proof-of-concept to explore custom binary serialization for "messages" (with headers and payloads) in a Sinch context. The project is **lightweight and fast**, aiming to pack data efficiently for transport or storage.
+**Message.Encoder** is a lightweight C# library for encoding message objects into a compact binary format. It is a proof-of-concept for custom binary serialization of messages with headers and payloads. The project focuses on efficient packing for transport or storage.
 
 > **Note**  
-> This project was originally created as part of a recruitment exercise, and it was left a bit unfinished when the recruitment process ended.  
-> After some digging, it turned out this encoder behaves **fairly similar to MessagePack** (but without any fancy code-generation features). 😉 **Please do your own research!**
+> The encoder is conceptually similar to MessagePack in some areas, but it is an independent proof-of-concept without code generation.
 
 ## Project Structure
 
-- **src/Sinch.MessageEncoder** – Core library with encoder logic.
-- **src/Sinch.MessageEncoder.PoC** – Proof-of-concept console app showcasing basic usage.
-- **src/Benchmarks/Sinch.MessageEncoder.Benchmarks** – Benchmark project using BenchmarkDotNet.
-- **src/Tests/Sinch.MessageEncoder.MessageBuilder.Tests** – Unit tests for the message builder.
-- **src/Tests/Sinch.MessageEncoder.CustomMessages.Tests** – Unit tests for custom message classes.
+- **src/Message.Encoder** – Core library with encoder logic.
+- **src/Message.Encoder.PoC** – Proof-of-concept console app showcasing basic usage.
+- **src/Benchmarks/Message.Encoder.Benchmarks** – Benchmark project using BenchmarkDotNet.
+- **src/Tests/Message.Encoder.MessageBuilder.Tests** – Unit tests for the message builder.
+- **src/Tests/Message.Encoder.CustomMessages.Tests** – Unit tests for custom message classes.
 
 ## Features
 
@@ -20,7 +19,7 @@
 - **Headers & Payload Model** – Clean separation between headers and payloads.
 - **Fluent Builder API** – Chain calls to build messages easily.
 - **Custom Serialization Support** – Plug in custom serializers per property.
-- **Efficiency Focus** – Span-based operations for maximum performance.
+- **Efficiency Focus** – Span-based operations for performance.
 - **Minimal Dependencies** – Built on pure .NET without heavy libraries.
 
 ## Getting Started
@@ -32,23 +31,23 @@
 ### Build the Solution
 
 ```bash
-dotnet build Sinch.MessageEncoder.sln
+dotnet build Message.Encoder.sln
 ```
 
-Or open `Sinch.MessageEncoder.sln` in Visual Studio 2022+ and build.
+Or open `Message.Encoder.sln` in Visual Studio 2022+ and build.
 
 ### Run the PoC
 
 ```bash
-dotnet run --project src/Sinch.MessageEncoder.PoC/Sinch.MessageEncoder.PoC.csproj
+dotnet run --project src/Message.Encoder.PoC/Message.Encoder.PoC.csproj
 ```
 
-Or set **Sinch.MessageEncoder.PoC** as your startup project in Visual Studio.
+Or set **Message.Encoder.PoC** as your startup project in Visual Studio.
 
 ### Run the Tests
 
 ```bash
-dotnet test Sinch.MessageEncoder.sln
+dotnet test Message.Encoder.sln
 ```
 
 Or run them through Visual Studio's Test Explorer.
@@ -56,18 +55,17 @@ Or run them through Visual Studio's Test Explorer.
 ### Run Benchmarks
 
 ```bash
-cd src/Benchmarks/Sinch.MessageEncoder.Benchmarks
+cd src/Benchmarks/Message.Encoder.Benchmarks
 dotnet run -c Release
 ```
 
-(Always run benchmarks in **Release** mode for valid results.)
+Always run benchmarks in **Release** mode for representative results.
 
 ## Usage Example
 
 ```csharp
-using Sinch.MessageEncoder;
-using Sinch.MessageEncoder.Builders;
-using Sinch.MessageEncoder.Messages.Default.Text;
+using Message.Encoder.Builders;
+using Message.Encoder.Messages.Default.Text;
 
 var builder = MessageBuilder<DefaultTextMessageHeaders, DefaultTextMessagePayload>.CreateBuilder();
 
@@ -83,16 +81,10 @@ var messageBytes = builder
     .GetBinary();
 ```
 
-> Now `messageBytes` contains the serialized message ready for transport or storage!
+`messageBytes` contains the serialized message ready for transport or storage.
 
-*Note*: The library focuses mainly on **serialization** for now. Full deserialization support would require a bit more work.
+The library currently focuses mainly on serialization. Full deserialization support may require additional work depending on the use case.
 
 ## Contributing
 
-Contributions, ideas, and improvements are welcome!  
-Feel free to fork the project, create a branch, and open a pull request. 🚀
-
-## License
-
-This project is licensed under the **MIT License**.  
-See the [LICENSE](./LICENSE) file for details.
+Contributions, ideas, and improvements are welcome. Feel free to fork the project, create a branch, and open a pull request.

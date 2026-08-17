@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Message.Encoder.PoC": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}
