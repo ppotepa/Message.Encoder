@@ -3,7 +3,6 @@ using Message.Encoder.Messages;
 using Message.Encoder.Metadata.Serialization;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Message.Encoder.Serializers.Default
 {
@@ -12,13 +11,10 @@ namespace Message.Encoder.Serializers.Default
         private const int PropertyHeaderLength = 4;
         private static readonly byte[] EmptyBytesResult = { 0, 0 };
 
-        private static readonly Dictionary<Type, SerializationMetadata[]> PayloadMetadata = AppDomain.CurrentDomain
-                .GetSubclassesOf<Payload>()
-                .ToDictionary(type => type, SerializationMetadata.Create);
-
         public Payload Deserialize(Type payloadType, ReadOnlySpan<byte> payloadSpan)
         {
-            Payload payload = Activator.CreateInstance(payloadType) as Payload;
+            Payload payload = Activator.CreateInstance(payloadType) as Payload
+                ?? throw new InvalidOperationException($"Unable to create payload type {payloadType.Name}.");
 
             if (payloadSpan.Length > 0)
             {
@@ -36,13 +32,13 @@ namespace Message.Encoder.Serializers.Default
             if (payload is null)
                 return EmptyBytesResult;
 
-            var metadata = PayloadMetadata[payload.GetType()];
+            var metadata = SerializationMetadata.Create(payload.GetType());
 
             foreach (var data in metadata)
             {
                 var value = data.PropertyInfo.GetValue(payload);
                 var array = value.ToByteArray();
-                listBytes.AddRange((array.Length).ToByteArray(), array);
+                listBytes.AddRange(array.Length.ToByteArray(), array);
             }
 
             return listBytes.ToArray();
@@ -51,11 +47,21 @@ namespace Message.Encoder.Serializers.Default
         private void DeserializeProperties(ReadOnlySpan<byte> payloadBytes, Payload payload)
         {
             int start = 0;
-            IEnumerable<SerializationMetadata> metadata = PayloadMetadata[payload.GetType()];
+            IEnumerable<SerializationMetadata> metadata = SerializationMetadata.Create(payload.GetType());
 
             foreach (SerializationMetadata data in metadata)
             {
                 var currentPropertyLength = payloadBytes.Slice(start, PropertyHeaderLength).ToInt32();
+
+                if (currentPropertyLength < 0)
+                {
+                    throw new ArgumentOutOfRangeException(
+                        nameof(currentPropertyLength),
+                        currentPropertyLength,
+                        "Payload property length cannot be negative."
+                    );
+                }
+
                 var currentPropertyBytes = payloadBytes.Slice(start + PropertyHeaderLength, currentPropertyLength);
 
                 if (data.IsNullable)

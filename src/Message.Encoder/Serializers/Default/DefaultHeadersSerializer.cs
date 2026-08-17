@@ -4,7 +4,6 @@ using Message.Encoder.Messages;
 using Message.Encoder.Messages.Transport;
 using Message.Encoder.Metadata.Serialization;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
@@ -13,14 +12,6 @@ namespace Message.Encoder.Serializers.Default
     public class DefaultHeadersSerializer : IHeadersSerializer
     {
         private const int PropertyHeaderLength = 2;
-        private static readonly Dictionary<Type, SerializationMetadata[]> HeadersMetadata;
-
-        static DefaultHeadersSerializer()
-        {
-            HeadersMetadata = AppDomain.CurrentDomain
-                .GetSubclassesOf<MessageHeader>()
-                .ToDictionary(type => type, SerializationMetadata.Create);
-        }
 
         public MessageHeader Deserialize(Type headersType, MessageHeaderTransport headersTransport)
         {
@@ -32,13 +23,12 @@ namespace Message.Encoder.Serializers.Default
                 ReadOnlySpan<byte> headerBytes = headersTransport.ADDITIONAL_HEADERS_BYTES;
 
                 var headersCount = CountHeaders(headerBytes);
-
-                SerializationMetadata[] metadata = HeadersMetadata[headersType];
+                SerializationMetadata[] metadata = SerializationMetadata.Create(headersType);
 
                 if (headersCount != metadata.Length)
                 {
                     throw new InvalidAmountOfHeadersFound(
-                        $"Invalid amount of headers found. Message does not match type signature." +
+                        $"Invalid amount of headers found. Message does not match type signature. " +
                         $"Expected {metadata.Length}, found {headersCount}. Header type {headersType.Name}."
                     );
                 }
@@ -112,10 +102,18 @@ namespace Message.Encoder.Serializers.Default
 
             for (var propertyStart = 0; propertyStart < headerBytes.Length;)
             {
-                var current = headerBytes.Slice(propertyStart, 2);
-                var currentLength = current.ToInt16();
+                var currentLength = headerBytes.Slice(propertyStart, PropertyHeaderLength).ToInt16();
+
+                if (currentLength < 0)
+                {
+                    throw new InvalidHeadersLengthException(
+                        $"Header property length cannot be negative: {currentLength}.",
+                        new ArgumentOutOfRangeException(nameof(currentLength))
+                    );
+                }
+
                 headersCount++;
-                propertyStart += 2 + currentLength;
+                propertyStart += PropertyHeaderLength + currentLength;
             }
 
             return headersCount;
@@ -125,11 +123,20 @@ namespace Message.Encoder.Serializers.Default
             where THeaders : MessageHeader
         {
             long headersLength = 0;
-            var metadata = HeadersMetadata[headers.GetType()];
+            var metadata = SerializationMetadata.Create(headers.GetType());
             var result = metadata.Select(data =>
             {
                 byte[] current = data.PropertyInfo.GetValue(headers).ToByteArray();
-                headersLength += (short)(2 + current.Length);
+
+                if (current.Length > short.MaxValue)
+                {
+                    throw new InvalidHeadersLengthException(
+                        $"Header property {data.PropertyInfo.Name} is too large. Maximum length is {short.MaxValue} bytes.",
+                        new ArgumentOutOfRangeException(data.PropertyInfo.Name)
+                    );
+                }
+
+                headersLength += PropertyHeaderLength + current.Length;
                 return ((short)current.Length).ToByteArray().Concat(current);
             })
             .SelectMany(obj => obj)

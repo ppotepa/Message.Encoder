@@ -1,5 +1,6 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Jobs;
+using Message.Encoder.Extensions;
 using System;
 
 namespace Message.Encoder.Benchmarks.Conversions
@@ -35,14 +36,12 @@ namespace Message.Encoder.Benchmarks.Conversions
         [Benchmark]
         public object UsingBitShifting()
         {
-            //return _data.Length switch
-            //{
-            //    4 => _data.ToSignle(),
-            //    8 => _data.ToDouble(),
-            //    _ => throw new InvalidOperationException("Invalid params.")
-            //};
-
-            return default;
+            return _data.Length switch
+            {
+                4 => BitConverter.Int32BitsToSingle(_data.ToInt32()),
+                8 => BitConverter.Int64BitsToDouble(_data.ToInt64()),
+                _ => throw new InvalidOperationException("Invalid params.")
+            };
         }
     }
 }

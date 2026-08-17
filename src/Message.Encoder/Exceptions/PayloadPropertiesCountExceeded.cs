@@ -4,7 +4,7 @@ namespace Message.Encoder.Exceptions
 {
     public class PayloadPropertiesCountExceeded : Exception
     {
-        public PayloadPropertiesCountExceeded(string message)
+        public PayloadPropertiesCountExceeded(string message) : base(message)
         {
         }
     }

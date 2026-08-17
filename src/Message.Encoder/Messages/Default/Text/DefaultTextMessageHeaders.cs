@@ -7,10 +7,10 @@ namespace Message.Encoder.Messages.Default.Text
     public class DefaultTextMessageHeaders : MessageHeader
     {
         [SerializationOrder(Order = 1, PropertyName = "recipient-name")]
-        public string SenderName { get; init; }
+        public string RecipientName { get; set; }
 
         [SerializationOrder(Order = 2, PropertyName = "sender-name")]
-        public string RecipientName { get; set; }
+        public string SenderName { get; init; }
 
         [SerializationOrder(Order = 3, PropertyName = "is-message-unread")]
         public bool IsMessageUnread { get; set; }
