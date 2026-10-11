@@ -5,6 +5,10 @@
 > **Note**  
 > The encoder is conceptually similar to MessagePack in some areas, but it is an independent proof-of-concept without code generation.
 
+## Status
+
+Proof of concept. The library, console app, tests, and benchmarks currently target `net7.0`, which [reached end of support in May 2024](https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core). The repository includes tests but no automated CI workflow. Treat the wire format and API as experimental.
+
 ## Project Structure
 
 - **src/Message.Encoder** – Core library with encoder logic.
@@ -27,7 +31,7 @@
 
 ### Prerequisites
 
-- [.NET SDK 7.0](https://dotnet.microsoft.com/en-us/download/dotnet/7.0) or newer.
+- A .NET SDK with `net7.0` targeting support. Running the existing applications and tests without retargeting requires the .NET 7 runtime.
 
 ### Build the Solution
 
@@ -45,6 +49,8 @@ dotnet run --project src/Message.Encoder.PoC/Message.Encoder.PoC.csproj
 
 Or set **Message.Encoder.PoC** as your startup project in Visual Studio.
 
+The PoC console app contains serialization/round-trip timing experiments, not a messaging service.
+
 ### Run the Tests
 
 ```bash
@@ -60,7 +66,7 @@ cd src/Benchmarks/Message.Encoder.Benchmarks
 dotnet run -c Release
 ```
 
-Always run benchmarks in **Release** mode for representative results.
+Run benchmarks in **Release** mode. The BenchmarkDotNet project compares integer and floating-point conversion routines; it does **not** measure end-to-end message serialization throughput.
 
 ## Usage Example
 
